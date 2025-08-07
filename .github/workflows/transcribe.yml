@@ -1,41 +1,17 @@
-name: Transcribe Videos
-
-on:
-  workflow_dispatch:
-  push:
-    paths:
-      - 'videos.txt'
-
-jobs:
-  transcribe:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Load your repo
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
+      - name: Install ffmpeg & Python tools
         run: |
-          sudo apt-get update
+          sudo apt-get update -y
           sudo apt-get install -y ffmpeg
           python3 -m pip install --upgrade pip
-          pip install git+https://github.com/openai/whisper.git yt-dlp
+          pip install openai-whisper yt-dlp
 
-      - name: Transcribe each video
+      - name: Transcribe Videos
+        shell: bash
         run: |
           mkdir -p transcripts
           while read url; do
-            echo "Processing $url"
-            # Download best audio
-            yt-dlp -f bestaudio -o temp_audio.%(ext)s "$url"
-            # Convert and transcribe
-            ffmpeg -y -i temp_audio.* -ar 16000 -ac 1 audio.wav
+            echo "Downloading audio from $url"
+            yt-dlp -f bestaudio --extract-audio --audio-format wav -o audio.wav "$url"
+            echo "Transcribing"
             whisper audio.wav --model tiny --output_format txt --output_dir transcripts
           done < videos.txt
-
-      - name: Commit transcripts back
-        uses: EndBug/add-and-commit@v9
-        with:
-          author_name: Automated Transcriber
-          author_email: transcriber@users.noreply.github.com
-          message: "New transcripts generated"
-          push: true
